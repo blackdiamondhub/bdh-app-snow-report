@@ -1,4 +1,5 @@
 from bdh_sdk import PluginSpec, Tile
+from bdh_sdk.plugins import LIFECYCLE_ON_DEMAND, NETWORK_OUTBOUND
 from bdh_sdk.provides import STATS
 
 STAT_KEYS = (
@@ -31,4 +32,13 @@ spec = PluginSpec(
             order=10,
         ),
     ),
+    api_version=2,
+    # No hub data: the resort and forecast are fixed to Sun Peaks.
+    permissions=(),
+    # Scrapes sunpeaksresort.com and fetches Open-Meteo.
+    network=NETWORK_OUTBOUND,
+    # Data is fetched on request and cached; the hub's status/stats hooks wake
+    # the app when it's stopped.
+    lifecycle=LIFECYCLE_ON_DEMAND,
+    memory_mb=96,
 )

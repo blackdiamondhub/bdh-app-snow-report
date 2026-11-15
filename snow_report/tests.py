@@ -377,3 +377,12 @@ class ProvidesTests(TestCase):
 
     def test_unavailable(self):
         self.assertEqual(self.stats(None), {})
+
+
+class ManifestTests(TestCase):
+    def test_hub_api_2_manifest(self):
+        from snow_report.plugin import spec
+        m = spec.manifest()
+        self.assertEqual(m["api_version"], 2)
+        self.assertEqual(m["permissions"], [])
+        self.assertEqual((m["network"], m["lifecycle"], m["memory_mb"]), ("outbound", "on_demand", 96))

@@ -42,6 +42,16 @@ stays in the forecast's Today tile.
 The homepage tile shows new snow when there is some. Otherwise it shows the
 temperature at the top of the mountain.
 
+## Container (hub API 2)
+
+Since 3.0.0 the app runs in its own container: no broker permissions (it
+uses no hub data), `network: outbound` (sunpeaksresort.com, Open-Meteo),
+`lifecycle: on_demand`, `memory_mb: 96`. The hub pulls the status tile and
+the `stats` provider from the container, waking it if it's stopped.
+CI's `image` job (from bdh-sdk's `app-ci.yml`) locks the dependencies
+against the hub's app runtime, builds the app's image and smoke-tests it
+the way the supervisor runs it.
+
 ## Development
 
 CI (`.github/workflows/ci.yml`) uses the reusable `app-ci.yml` from

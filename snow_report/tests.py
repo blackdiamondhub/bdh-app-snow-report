@@ -370,6 +370,27 @@ class HomepageHookTests(TestCase):
     def test_unavailable(self):
         self.assertIsNone(self.status(None))
 
+    def test_readings_up_top_mid_and_base(self):
+        resort = fixture("weather_current.html")
+        resort["temperatures"] = [
+            {"name": "Valley", "elevation_m": 1255, "c": 1.4},
+            {"name": "Top of the World", "elevation_m": 2080, "c": -6.6},
+            {"name": "Mid Mountain", "elevation_m": 1650, "c": -2.0},
+        ]
+        result = self.status(resort)
+        self.assertEqual(
+            [(r.label, r.value, r.unit) for r in result.readings],
+            [("Up top", -7, "C"), ("Mid", -2, "C"), ("Base", 1, "C")],
+        )
+
+    def test_readings_skip_missing_and_repeated_rows(self):
+        resort = fixture("weather_bad_data.html")
+        resort["new_snow"][0]["cm"] = 5.0
+        resort["temperatures"] = [{"name": "Top of the World", "elevation_m": 2080, "c": 3.0}]
+        result = self.status(resort)
+        self.assertEqual(result.text, "5 cm new snow")
+        self.assertEqual([(r.label, r.value) for r in result.readings], [("Up top", 3)])
+
 class ProvidesTests(TestCase):
     NOW = datetime.datetime(2026, 1, 10, 12, tzinfo=RESORT_TZ)
 

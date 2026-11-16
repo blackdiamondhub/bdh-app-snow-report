@@ -3,6 +3,9 @@ from zoneinfo import ZoneInfo
 
 from django.shortcuts import render
 
+from bdh_sdk.rpc import BrokerError
+from bdh_sdk.units import METRIC, system
+
 from .forecast import EFFECTS, describe, get_current, get_forecast, weather_effect
 from .resort import get_resort, sanitize_number  # noqa: F401  (re-exported for older callers)
 
@@ -151,8 +154,16 @@ def build_context(resort, forecast, units, current=None):
     }
 
 
+def default_units():
+    """The hub's units (its °C/°F switch); the page's own toggle only changes the view."""
+    try:
+        return system()
+    except BrokerError:
+        return METRIC
+
+
 def snow_report(request):
-    units = request.GET.get("units", "metric")
+    units = request.GET.get("units") or default_units()
     context = build_context(get_resort(), get_forecast(), units, get_current())
     if request.GET.get("wx") in EFFECTS:  # preview a background
         context["wx"] = request.GET["wx"]

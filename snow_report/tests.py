@@ -279,6 +279,40 @@ class ViewTests(TestCase):
         self.assertIn("Conditions are unavailable", response.content.decode())
 
 
+class HubUnitsTests(TestCase):
+    """The page defaults to the hub's units; ?units= only changes the view."""
+
+    def setUp(self):
+        from bdh_sdk import settings
+        from bdh_sdk.testing import FakeBroker
+
+        saved = settings._store
+        self.broker = FakeBroker(grants=("settings.get",), install=True)
+        self.broker.start()
+        self.addCleanup(settings.set_store, saved)
+        self.addCleanup(self.broker.stop)
+
+    def test_default_units_follow_hub(self):
+        from snow_report.views import default_units
+        self.broker.settings[("hub", "units")] = "imperial"
+        self.assertEqual(default_units(), "imperial")
+
+    def test_broker_refusal_falls_back_to_metric(self):
+        from snow_report.views import default_units
+        self.broker.grants = []
+        self.assertEqual(default_units(), "metric")
+
+    @patch("snow_report.views.get_current", return_value=None)
+    @patch("snow_report.views.get_forecast", return_value=None)
+    @patch("snow_report.views.get_resort", side_effect=lambda: fixture("weather_current.html"))
+    def test_page_uses_hub_units_unless_overridden(self, *_):
+        self.broker.settings[("hub", "units")] = "imperial"
+        html = self.client.get("/snow_report/").content.decode()
+        self.assertIn('class="mc-units" data-unit="imperial"', html)
+        html = self.client.get("/snow_report/?units=metric").content.decode()
+        self.assertIn('class="mc-units" data-unit="metric"', html)
+
+
 @tag("selenium")
 class SnowReportScrollHintTest(StaticLiveServerTestCase):
     @classmethod

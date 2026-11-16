@@ -6,7 +6,7 @@ app id, package and URL are still `snow_report`). Moved out of
 installed into the hub through the `blackdiamondhub.plugins` entry point
 (see [bdh-sdk](https://github.com/blackdiamondlodge/bdh-sdk)).
 
-Page: `/snow_report/` (`?units=metric|imperial`).
+Page: `/snow_report/`. Units follow the hub's setting; `?units=metric|imperial` (the page's switch) changes only the view.
 
 ## Data sources
 

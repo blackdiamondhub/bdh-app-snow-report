@@ -2,9 +2,9 @@
 
 Black Diamond Hub app: **Mountain Conditions** for Sun Peaks (tile title; the
 app id, package and URL are still `snow_report`). Moved out of
-[BlackDiamondHub](https://github.com/blackdiamondlodge/BlackDiamondHub) and
+[BlackDiamondHub](https://github.com/blackdiamondhub/BlackDiamondHub) and
 installed into the hub through the `blackdiamondhub.plugins` entry point
-(see [bdh-sdk](https://github.com/blackdiamondlodge/bdh-sdk)).
+(see [bdh-sdk](https://github.com/blackdiamondhub/bdh-sdk)).
 
 Page: `/snow_report/`. Units follow the hub's setting; `?units=metric|imperial` (the page's switch) changes only the view.
 

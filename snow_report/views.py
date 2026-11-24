@@ -6,7 +6,7 @@ from django.shortcuts import render
 from bdh_sdk.rpc import BrokerError
 from bdh_sdk.units import METRIC, system
 
-from .forecast import EFFECTS, describe, get_current, get_forecast, weather_effect
+from .forecast import EFFECTS, describe, get_current, get_forecast, icon_effect, weather_effect
 from .resort import get_resort, sanitize_number  # noqa: F401  (re-exported for older callers)
 
 COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
@@ -128,12 +128,19 @@ def build_context(resort, forecast, units, current=None):
         hero_text = today["label"] if today else None
 
     if current:
-        wx = weather_effect(current["code"], current["is_day"])
-    elif today and today["code"] is not None:
+        is_day = current["is_day"]
+    elif today:
         is_day = today["sunrise"] <= now.strftime("%H:%M") < today["sunset"]
-        wx = weather_effect(today["code"], is_day)
     else:
-        wx = None
+        is_day = True
+
+    # The background follows whatever the hero shows: the resort's report when it wins
+    # (it sees flurries the model misses), otherwise the model's current conditions.
+    wx = icon_effect(hero_icon, is_day) if resort.get("narrative") and resort.get("icon") else None
+    if wx is None and current:
+        wx = weather_effect(current["code"], current["is_day"])
+    elif wx is None and today and today["code"] is not None:
+        wx = weather_effect(today["code"], is_day)
 
     return {
         "units": u.system,

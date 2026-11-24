@@ -75,6 +75,22 @@ def weather_effect(code, is_day=True):
     return "clouds"
 
 
+ICON_EFFECTS = {
+    "fas fa-sun": "sun", "fas fa-moon": "stars", "fas fa-cloud-sun": "partly", "fas fa-cloud-moon": "clouds",
+    "fas fa-cloud": "clouds", "fas fa-smog": "fog", "fas fa-cloud-rain": "rain", "fas fa-cloud-sun-rain": "rain",
+    "fas fa-cloud-moon-rain": "rain", "fas fa-cloud-showers-heavy": "rain", "fas fa-snowflake": "snow",
+    "fas fa-bolt": "storm",
+}
+
+
+def icon_effect(icon, is_day=True):
+    """Hero icon → background animation, so the two never disagree. None for unknown icons."""
+    effect = ICON_EFFECTS.get(icon)
+    if not is_day:
+        effect = {"sun": "stars", "partly": "clouds"}.get(effect, effect)
+    return effect
+
+
 NIGHT_ICONS = {"fas fa-sun": "fas fa-moon", "fas fa-cloud-sun": "fas fa-cloud-moon", "fas fa-cloud-sun-rain": "fas fa-cloud-moon-rain"}
 
 

@@ -8,7 +8,9 @@ from django.test import TestCase, tag
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 
-from snow_report.forecast import get_current, get_forecast, parse_forecast, weather_effect
+from snow_report.forecast import (EFFECTS, WMO, describe, get_current, get_forecast, icon_effect, parse_forecast,
+                                  weather_effect)
+from snow_report.resort import ICONS as RESORT_ICONS
 from snow_report.resort import SNOW_REPORT_URL, parse_resort_html, sanitize_number
 from snow_report.views import RESORT_TZ, build_context
 
@@ -148,6 +150,16 @@ class WeatherEffectTests(TestCase):
         for (code, is_day), effect in cases.items():
             self.assertEqual(weather_effect(code, is_day), effect, code)
 
+    def test_every_hero_icon_has_a_matching_background(self):
+        # Any icon the hero can show (resort report or forecast) must map to a background of the same weather.
+        for icon in set(RESORT_ICONS.values()):
+            self.assertIn(icon_effect(icon), EFFECTS, icon)
+        for code in WMO:
+            for is_day in (True, False):
+                expected = weather_effect(code, is_day)
+                expected = "rain" if expected == "drizzle" else expected  # same icon for both
+                self.assertEqual(icon_effect(describe(code, is_day)[0], is_day), expected, (code, is_day))
+
     @patch("snow_report.forecast.requests.get")
     def test_fetch_caches_current_conditions(self, get):
         cache.clear()
@@ -205,6 +217,16 @@ class BuildContextTests(TestCase):
         ctx = build_context(None, parse_forecast(open_meteo_payload()), "metric")
         self.assertEqual(ctx["today"]["date"], "Jan 11")
         self.assertEqual(ctx["forecast"][0]["name"], "Today")
+
+    @patch("snow_report.views.local_now", fake_now(2026, 1, 10))
+    def test_background_matches_the_resort_report_over_the_model(self):
+        # Resort reports flurries while the model says overcast: the snowflake hero gets snow, not clouds.
+        resort = dict(fixture("weather_bad_data.html"), icon="fas fa-snowflake")
+        ctx = build_context(resort, parse_forecast(open_meteo_payload()), "metric", {"code": 3, "is_day": True})
+        self.assertEqual((ctx["hero_icon"], ctx["wx"]), ("fas fa-snowflake", "snow"))
+        resort["icon"] = "fas fa-sun"
+        ctx = build_context(resort, None, "metric", {"code": 3, "is_day": False})
+        self.assertEqual(ctx["wx"], "stars")  # morning report, but it's dark now
 
     @patch("snow_report.views.local_now", fake_now(2026, 1, 10))
     def test_background_follows_current_conditions(self):
@@ -267,9 +289,10 @@ class ViewTests(TestCase):
     @patch("snow_report.views.get_forecast", return_value=None)
     @patch("snow_report.views.get_resort", side_effect=lambda: fixture("weather_bad_data.html"))
     def test_weather_background_and_preview_override(self, *_):
-        self.assertIn('data-wx="clouds"', self.client.get("/snow_report/").content.decode())
-        self.assertIn('data-wx="snow"', self.client.get("/snow_report/?wx=snow").content.decode())
-        self.assertIn('data-wx="clouds"', self.client.get("/snow_report/?wx=<b>").content.decode())
+        # The resort reports partly cloudy while the model says overcast: the resort wins.
+        self.assertIn('data-wx="partly"', self.client.get("/snow_report/").content.decode())
+        self.assertIn('data-wx="rain"', self.client.get("/snow_report/?wx=rain").content.decode())
+        self.assertIn('data-wx="partly"', self.client.get("/snow_report/?wx=<b>").content.decode())
 
     @patch("snow_report.views.get_forecast", return_value=None)
     @patch("snow_report.views.get_resort", return_value=None)

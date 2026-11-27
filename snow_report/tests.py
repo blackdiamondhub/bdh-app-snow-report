@@ -464,3 +464,90 @@ class ManifestTests(TestCase):
         self.assertEqual(m["api_version"], 2)
         self.assertEqual(m["permissions"], [])
         self.assertEqual((m["network"], m["lifecycle"], m["memory_mb"]), ("outbound", "on_demand", 96))
+
+class AssistantToolTests(TestCase):
+    """The assistant's snow report, run the way the hub runs it (FakeBroker sessions)."""
+
+    def setUp(self):
+        from bdh_sdk import Stay, settings
+        from bdh_sdk.testing import FakeBroker
+
+        saved = settings._store
+        self.broker = FakeBroker(grants=("settings.get", "tools.*"), install=True, app_id="snow_report")
+        self.broker.start()
+        self.addCleanup(settings.set_store, saved)
+        self.addCleanup(self.broker.stop)
+        self.broker.stay = Stay(guest="Smith")  # a voice session during a stay is in guest mode
+        self.resort = fixture("weather_bad_data.html")  # Feb 27, in season
+        self.now = datetime.datetime(2026, 2, 28, 16, 0, tzinfo=datetime.timezone.utc)  # 9 am at the lodge
+        for target, kwargs in (("snow_report.assistant.get_resort", {"side_effect": lambda: self.resort}),
+                               ("snow_report.assistant.utc_now", {"side_effect": lambda: self.now})):
+            patcher = patch(target, **kwargs)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def call(self, args=None):
+        from bdh_sdk import tools as sdk_tools
+        from snow_report import assistant
+
+        self.broker.assistant_tools.clear()
+        for tool in assistant.tools(mode="guest"):
+            self.broker.add_tool(tool, lambda a, t=tool.id: assistant.run_tool(t, a, mode="guest"))
+        return sdk_tools.call_tool(sdk_tools.open_session(), "snow_report", args)
+
+    def test_every_mode_gets_one_readonly_lookup(self):
+        from bdh_sdk import ALL_MODES, hooks
+        from snow_report import assistant
+        from snow_report.plugin import spec
+        for mode in sorted(ALL_MODES):
+            with self.subTest(mode=mode):
+                (tool,) = assistant.tools(mode=mode)
+                self.assertEqual((tool.id, tool.modes, tool.readonly, tool.confirm),
+                                 ("snow_report", ALL_MODES, True, False))
+                self.assertLessEqual(len(tool.description), 300)
+        listed = hooks.run(spec, "tools", mode="guest")
+        self.assertEqual([t["id"] for t in listed], ["snow_report"])
+
+    def test_in_season_report(self):
+        result = self.call()
+        self.assertTrue(result["ok"], result)
+        report = result["result"]
+        self.assertEqual(report["updated"], "yesterday at 6:43 pm")
+        self.assertEqual(report["new_snow"], {"overnight": "0 cm", "48 hours": "0 cm", "7 days": "24 cm"})
+        self.assertEqual(report["base"], {"mid mountain": "158 cm", "alpine": "172 cm"})
+        self.assertTrue(report["conditions"].startswith("Cloudy with sunny breaks"))
+        self.assertEqual(list(report["temperatures"].items())[0], ("Top of the World", "-2°C"))
+        self.assertEqual(report["temperatures"]["Valley"], "3°C")
+        self.assertNotIn("note", report)
+
+    def test_imperial_hub(self):
+        self.broker.settings[("hub", "units")] = "imperial"
+        report = self.call()["result"]
+        self.assertEqual(report["base"], {"mid mountain": "62 in", "alpine": "68 in"})
+        self.assertEqual(report["temperatures"]["Valley"], "37°F")
+
+    def test_old_report_says_so(self):
+        self.now = datetime.datetime(2026, 3, 3, 16, 0, tzinfo=datetime.timezone.utc)
+        report = self.call()["result"]
+        self.assertEqual(report["updated"], "February 27 at 6:43 pm")
+        self.assertIn("out of date", report["note"])
+
+    def test_off_season_keeps_temperatures_and_wind(self):
+        from snow_report.assistant import OFF_SEASON
+        self.resort = fixture("weather_current.html")
+        report = self.call()["result"]
+        self.assertEqual(report["snow_report"], OFF_SEASON)
+        self.assertNotIn("new_snow", report)
+        self.assertEqual(report["wind_up_top"], "16 km/h from the south-southeast")
+        self.assertEqual(len(report["temperatures"]), 4)
+
+    def test_page_down(self):
+        from snow_report.assistant import UNAVAILABLE
+        self.resort = None
+        self.assertEqual(self.call(), {"ok": False, "error": UNAVAILABLE})
+
+    def test_updated_stamp_across_new_year(self):
+        from snow_report.assistant import parse_updated
+        self.assertEqual(parse_updated("Updated December 31st at 7:05am", datetime.datetime(2027, 1, 1, 8)),
+                         datetime.datetime(2026, 12, 31, 7, 5))
+        self.assertIsNone(parse_updated("Updated sometime", datetime.datetime(2027, 1, 1, 8)))

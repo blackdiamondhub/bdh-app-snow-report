@@ -42,6 +42,23 @@ stays in the forecast's Today tile.
 The homepage tile shows new snow when there is some. Otherwise it shows the
 temperature at the top of the mountain.
 
+## Assistant tools
+
+The hub's assistant (e.g. the voice app) can read the snow report through one read-only tool,
+offered in every mode (guest, dashboard and owner). The hub only offers it when `snow_report` is
+in its `assistant_apps` setting (Settings > Location > Assistant).
+
+| Tool | Params | Answers |
+|---|---|---|
+| `snow_report` | — | When the resort last updated the report, new snow (overnight, 24 hours, 48 hours, 7 days), snow base (mid mountain, alpine), the resort's conditions summary, temperature at each station, wind up top, and air quality when it's high risk |
+
+Answers are small dicts of speech-ready strings in the hub's units ("4 cm", "-2°C"), with the
+update time in lodge time (UTC-7 all year), e.g. "today at 12:17 pm". A report more than 36
+hours old carries a `note` that the new snow may be out of date. Off season (no snow sections on
+the page) the answer says there's no snow report and still gives temperatures and wind. When the
+resort page can't be fetched, the tool fails with a short sentence the assistant can say.
+Forecasts are the weather app's job.
+
 ## Container (hub API 2)
 
 Since 3.0.0 the app runs in its own container: no broker permissions (it

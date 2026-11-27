@@ -22,6 +22,9 @@ spec = PluginSpec(
     status="snow_report.homepage.status",
     provides={STATS: "snow_report.provides.stats"},
     stat_keys=STAT_KEYS,
+    # A read-only snow report lookup for the hub's assistant, in every mode.
+    tools="snow_report.assistant.tools",
+    run_tool="snow_report.assistant.run_tool",
     tiles=(
         Tile(
             title="Mountain Conditions",

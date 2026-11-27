@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bdh-app-snow-report"
-version = "3.2.1b1"
+version = "3.3.0b1"
 description = "Black Diamond Hub app: Sun Peaks mountain conditions (snow, weather, forecast)"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = [
-    "bdh-sdk>=0.34,<1",
+    "bdh-sdk>=0.46,<1",
     "beautifulsoup4",
     "requests",
 ]
